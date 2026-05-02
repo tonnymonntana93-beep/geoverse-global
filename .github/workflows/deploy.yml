@@ -1,8 +1,9 @@
-name: GeoVerse Final Build
+name: GeoVerse Force Build
 
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -10,24 +11,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
-      - name: Install Dependencies
-        run: npm install
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
 
-      - name: Build Web
+      - name: Build React App
         run: npm run build
 
-      - name: Capacitor Sync
+      - name: Capacitor Setup
         run: |
           npx cap init GeoVerse com.geoverse.app --web-dir dist || true
-          # Jeśli folder android nie istnieje, dodaj go. Jeśli jest, tylko zsynchronizuj.
-          if [ ! -d "android" ]; then
-            npx cap add android
-          fi
+          # Usuwamy stary folder android, aby uniknąć konfliktów plików
+          rm -rf android
+          npx cap add android
+          
+          # Ręczne wstrzyknięcie uprawnień do nowo wygenerowanego Manifestu
+          # To rozwiązuje błąd "Missing permissions", który widziałeś wcześniej
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-feature android:name="android.hardware.location.gps" />' android/app/src/main/AndroidManifest.xml
+          
           npx cap sync android
 
       - name: Setup Java 17
@@ -36,15 +41,15 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Build Android
+      - name: Build APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: GeoVerse-App
+          name: GeoVerse-Final-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
           
