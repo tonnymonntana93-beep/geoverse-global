@@ -1,55 +1,54 @@
-name: GeoVerse Global Release
+name: GeoVerse Production Build
 
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          
-      - name: Install dependencies
-        run: npm install
-        
-      - name: Build Web Version
-        run: npm run build
-        
-      - name: Capacitor Android Setup
-        run: |
-          npx cap init GeoVerse com.geoverse.global --web-dir dist
-          npx cap add android || true
-          npx cap sync android
-          
-      - name: Inject GPS Permissions
-        run: |
-          # Ten krok automatycznie dodaje uprawnienia GPS do wygenerowanego projektu Androida
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-feature android:name="android.hardware.location.gps" />' android/app/src/main/AndroidManifest.xml
+          cache: 'npm'
 
-      - name: Setup Java
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Web App
+        run: npm run build
+
+      - name: Capacitor Android Sync
+        run: |
+          npx cap init GeoVerse com.geoverse.app --web-dir dist || true
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
+          npx cap sync android
+
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
-          
+
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
-        
-      - name: Compile Android APK
+
+      - name: Build Android APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
-          
-      - name: Upload APK
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: GeoVerse-Android-Fix
+          name: GeoVerse-Release-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
           
