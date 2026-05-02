@@ -1,24 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { MessageSquare, ShoppingBag, Map as MapIcon, User, PlusSquare, Send } from 'lucide-react';
+import { MessageSquare, ShoppingBag, MapPin, User, Search, Zap, crosshair } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 
-// --- PIXEL ART ASSETS ---
-const pixelIcon = (color) => L.divIcon({
-  className: 'pixel-marker',
-  html: `<div style="width:20px; height:20px; background:${color}; border:3px solid black; box-shadow: 3px 3px 0px rgba(0,0,0,0.4);"></div>`,
-  iconSize: [20, 20]
+// --- STYLIZACJA NEONOWA ---
+const neonGreen = "#1dfa9e";
+const neonPurple = "#b535f6";
+
+// Funkcja tworząca Izometrycznego Agenta (inspirowane grafiką)
+const createIsoIcon = (color, status) => L.divIcon({
+  className: 'iso-marker',
+  html: `
+    <div style="position: relative; width: 50px; height: 60px;">
+      ${status ? `<div style="position: absolute; top: -40px; left: -20px; background: #0d1117; border: 2px solid ${color}; color: ${color}; padding: 2px 8px; font-size: 14px; white-space: nowrap; shadow: 4px 4px 0px #000; z-index: 100;">${status}</div>` : ''}
+      <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%) rotateX(60deg); width: 40px; height: 40px; border: 3px solid ${color}; border-radius: 50%; box-shadow: 0 0 15px ${color};"></div>
+      <div style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); width: 25px; height: 45px; background: ${color}; border: 3px solid white; box-shadow: 0 0 10px ${color};">
+        <div style="width: 100%; height: 15px; background: rgba(0,0,0,0.3);"></div>
+      </div>
+    </div>
+  `,
+  iconSize: [50, 60],
+  iconAnchor: [25, 55]
 });
+
+// --- KOMPONENT SIATKI IZOMETRYCZNEJ ---
+const GeoGrid = ({ pos }) => {
+  const map = useMap();
+  if (!pos) return null;
+  const lines = [];
+  const step = 0.0006; 
+  for (let i = -12; i <= 12; i++) {
+    lines.push([[pos.lat + (step * 12), pos.lng + (step * i)], [pos.lat - (step * 12), pos.lng + (step * i)]]);
+    lines.push([[pos.lat + (step * i), pos.lng + (step * 12)], [pos.lat + (step * i), pos.lng - (step * 12)]]);
+  }
+  return lines.map((l, i) => <Polyline key={i} positions={l} pathOptions={{ color: neonGreen, weight: 1, opacity: 0.15 }} />);
+};
 
 const App = () => {
   const [userPos, setUserPos] = useState(null);
   const [view, setView] = useState('MAP');
-  const [balance, setBalance] = useState(100);
-  const [items, setItems] = useState([
-    { id: 1, type: 'MARKET', pos: [50.034, 19.219], title: "Klawiatura Retro", price: "50 $G", seller: "PixelBob" },
-    { id: 2, type: 'SOCIAL', pos: [50.036, 19.222], title: "Spotkanie fanów AI", user: "Ada_Lovelace" }
+  const [agents] = useState([
+    { id: 1, name: "Master_Leon", pos: [50.0348, 19.2210], msg: "SPRZEDAM ROWER" },
+    { id: 2, name: "Cyber_Ewa", pos: [50.0355, 19.2190], msg: "Szukam ekipy na raid" }
   ]);
 
   useEffect(() => {
@@ -27,49 +52,48 @@ const App = () => {
     });
   }, []);
 
-  // Stylizacja Pixel-Art dla komponentów
-  const pixelBox = "bg-[#c0c0c0] border-4 border-t-white border-l-white border-b-[#808080] border-r-[#808080] p-2 text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]";
-  const pixelButton = "bg-[#000080] text-white border-2 border-t-[#4040ff] border-l-[#4040ff] p-1 px-3 active:border-t-black active:border-l-black hover:bg-[#0000a0] transition-all text-[10px] uppercase font-bold";
+  const uiBox = "bg-black/80 border-2 border-[#1dfa9e] shadow-[4px_4px_0px_#000] p-2 text-[#1dfa9e]";
+  const btnStyle = "border-2 border-[#1dfa9e] p-2 hover:bg-[#1dfa9e] hover:text-black transition-all uppercase font-bold text-sm";
 
   return (
-    <div className="h-screen w-screen bg-[#313131] font-mono text-xs flex flex-col overflow-hidden select-none">
-      <Toaster richColors />
+    <div className="h-screen w-screen bg-[#050505] flex flex-col overflow-hidden text-[18px]">
+      <Toaster richColors theme="dark" />
 
-      {/* PASEK GÓRNY (DASHBOARD) */}
-      <div className={`${pixelBox} m-2 flex justify-between items-center z-[3000]`}>
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-[#ffff00] border-2 border-black flex items-center justify-center font-black italic text-black shadow-inner">G</div>
+      {/* AGENT HUD */}
+      <header className="p-4 z-[2000] flex justify-between items-center bg-black/60 backdrop-blur-md border-b-2 border-[#1dfa9e]/30">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 border-2 border-[#1dfa9e] flex items-center justify-center font-black text-xl shadow-[0_0_10px_#1dfa9e]">GV</div>
           <div>
-            <p className="text-[8px] font-bold">PORTFEL:</p>
-            <p className="text-sm font-black text-[#008000]">{balance} $G-BIT</p>
+            <h1 className="text-[#1dfa9e] leading-tight tracking-widest font-black">AGENT_PROFILER</h1>
+            <div className="flex items-center gap-2">
+              <span className="text-[12px] text-gray-500 uppercase italic">Oświęcim_Sector</span>
+              <div className="h-1 w-20 bg-gray-800 rounded-full overflow-hidden border border-[#1dfa9e]/30">
+                <div className="h-full bg-[#1dfa9e]" style={{width: '65%'}}></div>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="text-right">
-          <p className="text-[8px] font-bold">STATUS:</p>
-          <div className="flex items-center gap-1 justify-end">
-            <div className="w-2 h-2 bg-[#00ff00] animate-pulse border border-black"></div>
-            <span className="font-bold">ONLINE</span>
-          </div>
-        </div>
-      </div>
+        <Search className="text-[#1dfa9e]" />
+      </header>
 
-      {/* EKRAN GŁÓWNY */}
-      <main className="flex-1 relative overflow-hidden m-2 border-4 border-black">
+      {/* MAPA / MAIN ENGINE */}
+      <main className="flex-1 relative border-x-4 border-black">
         {view === 'MAP' && userPos && (
-          <MapContainer center={[userPos.lat, userPos.lng]} zoom={15} zoomControl={false} className="h-full w-full grayscale-[0.3]">
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          <MapContainer center={[userPos.lat, userPos.lng]} zoom={17} zoomControl={false} className="h-full w-full grayscale-[0.8] opacity-80">
+            <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+            <GeoGrid pos={userPos} />
             
             {/* GRACZ */}
-            <Marker position={[userPos.lat, userPos.lng]} icon={pixelIcon('#00ff00')} />
+            <Marker position={[userPos.lat, userPos.lng]} icon={createIsoIcon(neonGreen, "TO TY")} />
 
-            {/* OGŁOSZENIA NA MAPIE */}
-            {items.map(item => (
-              <Marker key={item.id} position={item.pos} icon={pixelIcon(item.type === 'MARKET' ? '#ff00ff' : '#00ffff')}>
-                <Popup className="pixel-popup">
-                  <div className={pixelBox}>
-                    <p className="font-bold text-[10px]">{item.title}</p>
-                    <p className="text-[#008000] font-black">{item.price || item.user}</p>
-                    <button className={`${pixelButton} mt-2 w-full`}>WIADOMOŚĆ</button>
+            {/* INNI GRACZE */}
+            {agents.map(a => (
+              <Marker key={a.id} position={a.pos} icon={createIsoIcon(neonPurple, a.msg)}>
+                <Popup>
+                  <div className="p-2 font-mono">
+                    <p className="font-black text-lg underline">{a.name}</p>
+                    <p className="mt-2 text-sm italic">Status: {a.msg}</p>
+                    <button className={`${btnStyle} mt-4 w-full`}>NAWIĄŻ KONTAKT</button>
                   </div>
                 </Popup>
               </Marker>
@@ -77,67 +101,46 @@ const App = () => {
           </MapContainer>
         )}
 
-        {view === 'MARKET' && (
-          <div className="h-full bg-[#808080] p-4 overflow-y-auto space-y-4">
-            <h2 className="font-black text-lg shadow-sm">LOCAL_MARKET.EXE</h2>
-            <div className={pixelBox}>
-              <div className="flex gap-4">
-                <div className="w-16 h-16 bg-white border-2 border-black flex items-center justify-center text-[8px]">IMAGE_NA</div>
-                <div className="flex-1">
-                  <p className="font-black">VINTAGE MONITOR</p>
-                  <p className="text-[#008000]">250 $G</p>
-                  <button className={`${pixelButton} mt-1`}>KUP TERAZ</button>
-                </div>
+        {/* PLACEHOLDERY DLA RESZTY WIDOKÓW */}
+        {view !== 'MAP' && (
+          <div className="p-6 bg-black h-full overflow-y-auto">
+            <div className={uiBox}>
+              <h2 className="text-2xl font-black mb-4 underline">MODUŁ: {view}</h2>
+              <p className="mb-6 opacity-70 italic font-mono text-sm">Przeszukiwanie bazy danych sektora Oświęcim... Brak aktywnych błędów.</p>
+              <div className="grid gap-4">
+                {[1,2,3].map(i => (
+                  <div key={i} className="border border-[#1dfa9e]/30 p-4 flex justify-between items-center">
+                    <span>DANE_STRUKTURALNE_{i}</span>
+                    <button className={btnStyle}>OTWÓRZ</button>
+                  </div>
+                ))}
               </div>
-            </div>
-            <button className={`${pixelButton} w-full py-4 flex items-center justify-center gap-2 text-sm`}>
-              <PlusSquare size={16} /> WYSTAW PRZEDMIOT
-            </button>
-          </div>
-        )}
-
-        {view === 'CHAT' && (
-          <div className="h-full bg-white flex flex-col p-2 border-4 border-[#808080]">
-            <div className="flex-1 space-y-2 overflow-y-auto p-2">
-              <div className="bg-[#e0e0e0] p-2 self-start max-w-[80%] border-2 border-black">Siema! Widzę, że wystawiłeś klawiaturę?</div>
-              <div className="bg-[#000080] text-white p-2 ml-auto max-w-[80%] border-2 border-black">Tak, sprawna w 100%. Odbiór przy rynku.</div>
-            </div>
-            <div className="flex gap-2 p-2 bg-[#808080] border-t-2 border-black">
-              <input className="flex-1 p-2 border-2 border-black outline-none" placeholder="Pisz tutaj..." />
-              <button className={pixelButton}><Send size={14} /></button>
             </div>
           </div>
         )}
       </main>
 
-      {/* MENU DOLNE */}
-      <nav className="p-2 flex justify-between gap-2 bg-[#c0c0c0] border-t-4 border-black">
-        <button onClick={() => setView('MAP')} className={`${pixelButton} flex-1 flex flex-col items-center py-2 ${view === 'MAP' ? 'bg-[#000050]' : ''}`}>
-          <MapIcon size={18} />
-          <span className="mt-1">MAPA</span>
+      {/* CYBER-NAVBAR */}
+      <footer className="p-4 bg-black border-t-4 border-[#1dfa9e]/20 z-[2000] flex justify-around">
+        <button onClick={() => setView('MAP')} className={`flex flex-col items-center gap-1 ${view === 'MAP' ? 'text-[#1dfa9e]' : 'text-gray-600'}`}>
+          <MapPin size={24} />
+          <span className="text-[10px] font-bold">RADAR</span>
         </button>
-        <button onClick={() => setView('MARKET')} className={`${pixelButton} flex-1 flex flex-col items-center py-2 ${view === 'MARKET' ? 'bg-[#000050]' : ''}`}>
-          <ShoppingBag size={18} />
-          <span className="mt-1">MARKET</span>
+        <button onClick={() => setView('MARKET')} className={`flex flex-col items-center gap-1 ${view === 'MARKET' ? 'text-[#1dfa9e]' : 'text-gray-600'}`}>
+          <ShoppingBag size={24} />
+          <span className="text-[10px] font-bold">RYNEK</span>
         </button>
-        <button onClick={() => setView('CHAT')} className={`${pixelButton} flex-1 flex flex-col items-center py-2 ${view === 'CHAT' ? 'bg-[#000050]' : ''}`}>
-          <MessageSquare size={18} />
-          <span className="mt-1">CZAT</span>
+        <button onClick={() => setView('CHAT')} className={`flex flex-col items-center gap-1 ${view === 'CHAT' ? 'text-[#1dfa9e]' : 'text-gray-600'}`}>
+          <MessageSquare size={24} />
+          <span className="text-[10px] font-bold">LINK</span>
         </button>
-        <button onClick={() => setView('PROFILE')} className={`${pixelButton} flex-1 flex flex-col items-center py-2`}>
-          <User size={18} />
-          <span className="mt-1">PROFIL</span>
+        <button onClick={() => setView('PROFILE')} className={`flex flex-col items-center gap-1 ${view === 'PROFILE' ? 'text-[#1dfa9e]' : 'text-gray-600'}`}>
+          <User size={24} />
+          <span className="text-[10px] font-bold">AGENT</span>
         </button>
-      </nav>
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        .pixel-popup .leaflet-popup-content-wrapper { background: transparent; border: none; box-shadow: none; }
-        .pixel-popup .leaflet-popup-tip { display: none; }
-        * { image-rendering: pixelated; }
-      `}} />
+      </footer>
     </div>
   );
 };
 
 export default App;
-          
