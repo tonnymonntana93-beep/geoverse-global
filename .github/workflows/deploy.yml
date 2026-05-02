@@ -1,13 +1,9 @@
-name: GeoVerse Ultimate Build
+name: GeoVerse GPS Fix Build
 
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
-
-env:
-  # To wymusza nowszy silnik i usuwa Twoje ostrzeżenie
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
@@ -21,25 +17,24 @@ jobs:
           node-version: '22'
 
       - name: Install Dependencies
-        run: npm install --legacy-peer-deps
+        run: npm install
 
       - name: Build Web App
         run: npm run build
 
-      - name: Verify Build
-        run: |
-          if [ ! -d "dist" ]; then
-            echo "BŁĄD: Folder 'dist' nie powstał! Sprawdź błędy w kodzie React/Vite."
-            exit 1
-          fi
-
-      - name: Capacitor Android Sync
+      - name: Capacitor Sync
         run: |
           npx cap init GeoVerse com.geoverse.global --web-dir dist || true
-          # Usuwamy stary folder android, by uniknąć konfliktów przy przebudowie
-          rm -rf android
-          npx cap add android
+          # Jeśli folder android nie istnieje, stwórz go
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
+          # Kopiujemy Twój ręcznie stworzony Manifest do folderu budowania
+          # To zapobiega błędom "Missing permissions"
+          cp android/app/src/main/AndroidManifest.xml android/app/src/main/AndroidManifest.xml.bak || true
           npx cap sync android
+          # Przywracamy Twój manifest po synchronizacji
+          mv android/app/src/main/AndroidManifest.xml.bak android/app/src/main/AndroidManifest.xml || true
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -47,16 +42,15 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Build Android APK
+      - name: Build APK
         run: |
           cd android
           chmod +x gradlew
-          # Flaga --no-daemon pomaga w środowiskach CI
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: GeoVerse-Ready-APK
+          name: GeoVerse-GPS-Fixed
           path: android/app/build/outputs/apk/debug/app-debug.apk
           
