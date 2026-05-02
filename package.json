@@ -1,15 +1,15 @@
 {
-  "name": "geoverse-global",
+  "name": "geoverse-app",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@capacitor/android": "^6.0.0",
     "@capacitor/core": "^6.0.0",
-    "@capacitor/ios": "^6.0.0",
     "@capacitor/geolocation": "^6.0.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.462.0",
