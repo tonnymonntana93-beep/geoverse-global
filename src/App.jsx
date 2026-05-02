@@ -1,144 +1,173 @@
 import React, { useState, useEffect } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import L from 'leaflet';
-import { MessageSquare, ShoppingBag, MapPin, User, Search, Zap, crosshair } from 'lucide-react';
-import { toast, Toaster } from 'sonner';
+import { initializeApp } from "firebase/app";
+import { getDatabase, ref, onValue, set, update } from "firebase/database";
+import { UserCircle, Shield, ShoppingBag, MessageSquare, MapPin, Search } from 'lucide-react';
 
-// --- STYLIZACJA NEONOWA ---
-const neonGreen = "#1dfa9e";
-const neonPurple = "#b535f6";
+// --- KONFIGURACJA FIREBASE (WKLEJ SWOJE DANE TUTAJ) ---
+const firebaseConfig = {
+  apiKey: "BM1VxAtBCrkFr7fL5xYlaQF26MioB6LQjsMyCw09GZxURi1pBNCFaXS48aHe_CNakn-snN5hb7R2VBQkIDHF8tA",
+  authDomain: "geoverse.firebaseapp.com",
+  databaseURL: "TWOJA_URL_BAZY",
+  projectId: "geoverse-global",
+  storageBucket: "geoverse.appspot.com",
+  messagingSenderId: "ID",
+  appId: "ID_APP"
+};
 
-// Funkcja tworząca Izometrycznego Agenta (inspirowane grafiką)
-const createIsoIcon = (color, status) => L.divIcon({
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// --- IKONY IZOMETRYCZNE ---
+const createIsoIcon = (color, label, isUser) => L.divIcon({
   className: 'iso-marker',
   html: `
     <div style="position: relative; width: 50px; height: 60px;">
-      ${status ? `<div style="position: absolute; top: -40px; left: -20px; background: #0d1117; border: 2px solid ${color}; color: ${color}; padding: 2px 8px; font-size: 14px; white-space: nowrap; shadow: 4px 4px 0px #000; z-index: 100;">${status}</div>` : ''}
-      <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%) rotateX(60deg); width: 40px; height: 40px; border: 3px solid ${color}; border-radius: 50%; box-shadow: 0 0 15px ${color};"></div>
-      <div style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); width: 25px; height: 45px; background: ${color}; border: 3px solid white; box-shadow: 0 0 10px ${color};">
-        <div style="width: 100%; height: 15px; background: rgba(0,0,0,0.3);"></div>
-      </div>
+      ${label ? `<div style="position: absolute; top: -45px; left: -10px; background: #0d1117; border: 2px solid ${color}; color: ${color}; padding: 3px 10px; font-size: 14px; white-space: nowrap; border-radius: 2px; box-shadow: 4px 4px 0px #000; z-index: 100;">${label}</div>` : ''}
+      <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%) rotateX(60deg); width: 40px; height: 40px; border: 3px solid ${color}; border-radius: 50%; box-shadow: 0 0 20px ${color}; opacity: 0.8;"></div>
+      <div style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); width: 20px; height: 40px; background: ${color}; border: 3px solid white; ${isUser ? 'animation: bounce 2s infinite;' : ''}"></div>
     </div>
   `,
   iconSize: [50, 60],
   iconAnchor: [25, 55]
 });
 
-// --- KOMPONENT SIATKI IZOMETRYCZNEJ ---
-const GeoGrid = ({ pos }) => {
-  const map = useMap();
-  if (!pos) return null;
-  const lines = [];
-  const step = 0.0006; 
-  for (let i = -12; i <= 12; i++) {
-    lines.push([[pos.lat + (step * 12), pos.lng + (step * i)], [pos.lat - (step * 12), pos.lng + (step * i)]]);
-    lines.push([[pos.lat + (step * i), pos.lng + (step * 12)], [pos.lat + (step * i), pos.lng - (step * 12)]]);
-  }
-  return lines.map((l, i) => <Polyline key={i} positions={l} pathOptions={{ color: neonGreen, weight: 1, opacity: 0.15 }} />);
-};
-
 const App = () => {
+  const [user, setUser] = useState(null); // Profil Agenta
   const [userPos, setUserPos] = useState(null);
+  const [onlineAgents, setOnlineAgents] = useState({});
   const [view, setView] = useState('MAP');
-  const [agents] = useState([
-    { id: 1, name: "Master_Leon", pos: [50.0348, 19.2210], msg: "SPRZEDAM ROWER" },
-    { id: 2, name: "Cyber_Ewa", pos: [50.0355, 19.2190], msg: "Szukam ekipy na raid" }
-  ]);
 
+  // 1. Ładowanie/Tworzenie Profilu
+  useEffect(() => {
+    const savedProfile = localStorage.getItem('gv_agent');
+    if (savedProfile) setUser(JSON.parse(savedProfile));
+  }, []);
+
+  // 2. Synchronizacja z Bazą (Realtime)
+  useEffect(() => {
+    if (!user || !userPos) return;
+
+    // Wysyłaj moją pozycję i status do świata
+    update(ref(db, 'agents/' + user.id), {
+      name: user.name,
+      status: user.status,
+      pos: userPos,
+      lastSeen: Date.now()
+    });
+
+    // Słuchaj innych agentów
+    const agentsRef = ref(db, 'agents');
+    onValue(agentsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) setOnlineAgents(data);
+    });
+  }, [user, userPos]);
+
+  // 3. GPS Tracking
   useEffect(() => {
     Geolocation.watchPosition({ enableHighAccuracy: true }, (pos) => {
       if (pos) setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
     });
   }, []);
 
-  const uiBox = "bg-black/80 border-2 border-[#1dfa9e] shadow-[4px_4px_0px_#000] p-2 text-[#1dfa9e]";
-  const btnStyle = "border-2 border-[#1dfa9e] p-2 hover:bg-[#1dfa9e] hover:text-black transition-all uppercase font-bold text-sm";
+  // Funkcja tworzenia profilu (Kreator)
+  const createAgent = (e) => {
+    e.preventDefault();
+    const newAgent = {
+      id: 'AGENT_' + Math.random().toString(36).substr(2, 5).toUpperCase(),
+      name: e.target.name.value,
+      status: 'SYSTEM_ONLINE',
+      xp: 0
+    };
+    setUser(newAgent);
+    localStorage.setItem('gv_agent', JSON.stringify(newAgent));
+  };
 
-  return (
-    <div className="h-screen w-screen bg-[#050505] flex flex-col overflow-hidden text-[18px]">
-      <Toaster richColors theme="dark" />
-
-      {/* AGENT HUD */}
-      <header className="p-4 z-[2000] flex justify-between items-center bg-black/60 backdrop-blur-md border-b-2 border-[#1dfa9e]/30">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 border-2 border-[#1dfa9e] flex items-center justify-center font-black text-xl shadow-[0_0_10px_#1dfa9e]">GV</div>
-          <div>
-            <h1 className="text-[#1dfa9e] leading-tight tracking-widest font-black">AGENT_PROFILER</h1>
-            <div className="flex items-center gap-2">
-              <span className="text-[12px] text-gray-500 uppercase italic">Oświęcim_Sector</span>
-              <div className="h-1 w-20 bg-gray-800 rounded-full overflow-hidden border border-[#1dfa9e]/30">
-                <div className="h-full bg-[#1dfa9e]" style={{width: '65%'}}></div>
-              </div>
+  // --- EKRAN KREATORA ---
+  if (!user) {
+    return (
+      <div className="h-screen w-screen bg-[#050505] flex items-center justify-center p-6 font-mono">
+        <div className="w-full max-w-md border-2 border-[#1dfa9e] p-8 bg-[#0d1117] shadow-[8px_8px_0px_#000]">
+          <h1 className="text-[#1dfa9e] text-3xl font-black italic mb-6 tracking-tighter">GEOWERSUM_INITIALIZE</h1>
+          <form onSubmit={createAgent} className="space-y-6">
+            <div>
+              <label className="text-[#1dfa9e] text-[12px] uppercase">Kryptonim Agenta:</label>
+              <input name="name" required className="w-full bg-black border-2 border-[#1dfa9e] p-3 text-[#1dfa9e] outline-none mt-2 focus:bg-[#1dfa9e]/10" placeholder="np. Master_Leon" />
             </div>
+            <button type="submit" className="w-full bg-[#1dfa9e] text-black font-black p-4 uppercase hover:bg-white transition-colors">Dołącz do Sektora</button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // --- GLÓWNY HUD ---
+  return (
+    <div className="h-screen w-screen bg-[#050505] flex flex-col font-mono text-[#1dfa9e] overflow-hidden">
+      <header className="p-4 border-b-2 border-[#1dfa9e]/20 flex justify-between items-center bg-black/80 backdrop-blur-md z-[2000]">
+        <div className="flex items-center gap-3">
+          <Shield className="text-[#1dfa9e] animate-pulse" size={32} />
+          <div>
+            <p className="text-xs opacity-50">STATUS: POŁĄCZONO</p>
+            <p className="font-black text-lg">{user.name}</p>
           </div>
         </div>
-        <Search className="text-[#1dfa9e]" />
+        <div className="text-right">
+          <p className="text-[10px]">LOKALIZACJA</p>
+          <p className="text-xs font-bold underline">SEKTOR_OŚWIĘCIM</p>
+        </div>
       </header>
 
-      {/* MAPA / MAIN ENGINE */}
-      <main className="flex-1 relative border-x-4 border-black">
+      <main className="flex-1 relative">
         {view === 'MAP' && userPos && (
-          <MapContainer center={[userPos.lat, userPos.lng]} zoom={17} zoomControl={false} className="h-full w-full grayscale-[0.8] opacity-80">
+          <MapContainer center={[userPos.lat, userPos.lng]} zoom={17} zoomControl={false} className="h-full w-full grayscale-[0.9]">
             <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
-            <GeoGrid pos={userPos} />
             
-            {/* GRACZ */}
-            <Marker position={[userPos.lat, userPos.lng]} icon={createIsoIcon(neonGreen, "TO TY")} />
+            {/* TY NA MAPIE */}
+            <Marker position={[userPos.lat, userPos.lng]} icon={createIsoIcon('#1dfa9e', 'TY', true)} />
 
-            {/* INNI GRACZE */}
-            {agents.map(a => (
-              <Marker key={a.id} position={a.pos} icon={createIsoIcon(neonPurple, a.msg)}>
-                <Popup>
-                  <div className="p-2 font-mono">
-                    <p className="font-black text-lg underline">{a.name}</p>
-                    <p className="mt-2 text-sm italic">Status: {a.msg}</p>
-                    <button className={`${btnStyle} mt-4 w-full`}>NAWIĄŻ KONTAKT</button>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
+            {/* INNI AGENCI Z BAZY REALTIME */}
+            {Object.keys(onlineAgents).map(id => {
+              const agent = onlineAgents[id];
+              if (id === user.id) return null; // Nie rysuj siebie podwójnie
+              return (
+                <Marker key={id} position={[agent.pos.lat, agent.pos.lng]} icon={createIsoIcon('#b535f6', agent.status, false)}>
+                  <Popup>
+                    <div className="bg-[#0d1117] p-2 text-[#1dfa9e]">
+                      <p className="font-black border-b border-[#1dfa9e] mb-2">{agent.name}</p>
+                      <p className="text-xs italic">{agent.status}</p>
+                      <button className="mt-4 w-full border border-[#1dfa9e] p-1 text-[10px] hover:bg-[#1dfa9e] hover:text-black">WYŚLIJ LINK</button>
+                    </div>
+                  </Popup>
+                </Marker>
+              );
+            })}
           </MapContainer>
-        )}
-
-        {/* PLACEHOLDERY DLA RESZTY WIDOKÓW */}
-        {view !== 'MAP' && (
-          <div className="p-6 bg-black h-full overflow-y-auto">
-            <div className={uiBox}>
-              <h2 className="text-2xl font-black mb-4 underline">MODUŁ: {view}</h2>
-              <p className="mb-6 opacity-70 italic font-mono text-sm">Przeszukiwanie bazy danych sektora Oświęcim... Brak aktywnych błędów.</p>
-              <div className="grid gap-4">
-                {[1,2,3].map(i => (
-                  <div key={i} className="border border-[#1dfa9e]/30 p-4 flex justify-between items-center">
-                    <span>DANE_STRUKTURALNE_{i}</span>
-                    <button className={btnStyle}>OTWÓRZ</button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
         )}
       </main>
 
-      {/* CYBER-NAVBAR */}
-      <footer className="p-4 bg-black border-t-4 border-[#1dfa9e]/20 z-[2000] flex justify-around">
-        <button onClick={() => setView('MAP')} className={`flex flex-col items-center gap-1 ${view === 'MAP' ? 'text-[#1dfa9e]' : 'text-gray-600'}`}>
-          <MapPin size={24} />
-          <span className="text-[10px] font-bold">RADAR</span>
+      <nav className="p-4 bg-black border-t-2 border-[#1dfa9e]/20 flex justify-around z-[2000]">
+        <button onClick={() => setView('MAP')} className={`flex flex-col items-center gap-1 ${view === 'MAP' ? 'text-[#1dfa9e]' : 'text-gray-500'}`}>
+          <MapPin size={24} /><span className="text-[8px]">RADAR</span>
         </button>
-        <button onClick={() => setView('MARKET')} className={`flex flex-col items-center gap-1 ${view === 'MARKET' ? 'text-[#1dfa9e]' : 'text-gray-600'}`}>
-          <ShoppingBag size={24} />
-          <span className="text-[10px] font-bold">RYNEK</span>
+        <button className="text-gray-500 flex flex-col items-center gap-1">
+          <ShoppingBag size={24} /><span className="text-[8px]">MARKET</span>
         </button>
-        <button onClick={() => setView('CHAT')} className={`flex flex-col items-center gap-1 ${view === 'CHAT' ? 'text-[#1dfa9e]' : 'text-gray-600'}`}>
-          <MessageSquare size={24} />
-          <span className="text-[10px] font-bold">LINK</span>
+        <button className="text-gray-500 flex flex-col items-center gap-1">
+          <MessageSquare size={24} /><span className="text-[8px]">MESSENGER</span>
         </button>
-        <button onClick={() => setView('PROFILE')} className={`flex flex-col items-center gap-1 ${view === 'PROFILE' ? 'text-[#1dfa9e]' : 'text-gray-600'}`}>
-          <User size={24} />
-          <span className="text-[10px] font-bold">AGENT</span>
+        <button className="text-[#1dfa9e] flex flex-col items-center gap-1">
+          <UserCircle size={24} /><span className="text-[8px]">PROFILE</span>
         </button>
-      </footer>
+      </nav>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes bounce { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -10px); } }
+        .leaflet-container { background: #050505 !important; }
+      `}} />
     </div>
   );
 };
