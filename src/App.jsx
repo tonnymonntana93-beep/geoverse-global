@@ -22,19 +22,41 @@ const App = () => {
   const [view, setView] = useState('MAP'); // MAP lub QUESTS
   const [ghostMode, setGhostMode] = useState(false);
 
-  useEffect(() => {
+    useEffect(() => {
     const initGPS = async () => {
       try {
-        await Geolocation.requestPermissions();
-        Geolocation.watchPosition({ enableHighAccuracy: true }, (pos) => {
-          if (pos) setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        // 1. Sprawdź i poproś o uprawnienia
+        const perm = await Geolocation.checkPermissions();
+        
+        if (perm.location !== 'granted') {
+          const request = await Geolocation.requestPermissions();
+          if (request.location !== 'granted') {
+            toast.error("Aplikacja potrzebuje zgody na GPS, aby działać!");
+            return;
+          }
+        }
+
+        // 2. Zacznij śledzenie
+        await Geolocation.watchPosition({ 
+          enableHighAccuracy: true, // Wymuś wysoką dokładność
+          timeout: 10000            // Czekaj max 10 sekund
+        }, (pos, err) => {
+          if (err) {
+            console.error(err);
+            toast.error("Błąd GPS: " + err.message);
+            return;
+          }
+          if (pos) {
+            setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          }
         });
       } catch (e) {
-        toast.error("Brak sygnału GPS.");
+        toast.error("Nie udało się zainicjować modułu GPS.");
       }
     };
     initGPS();
   }, []);
+  
 
   const toggleGhost = () => {
     setGhostMode(!ghostMode);
