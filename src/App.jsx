@@ -6,64 +6,59 @@ import { toast, Toaster } from 'sonner';
 
 const userIcon = L.divIcon({
   className: 'bg-transparent',
-  html: `<div class="w-6 h-6 bg-[#00f3ff] rounded-full border-2 border-white shadow-[0_0_15px_#00f3ff] animate-pulse"></div>`,
-  iconSize: [24, 24]
+  html: `<div class="w-8 h-8 bg-[#00f3ff] rounded-full border-4 border-white shadow-[0_0_20px_#00f3ff] animate-pulse"></div>`,
+  iconSize: [32, 32]
 });
 
 const App = () => {
   const [userPos, setUserPos] = useState(null);
-  const [errorInfo, setErrorInfo] = useState("Inicjalizacja...");
+  const [gpsStatus, setGpsStatus] = useState("Oczekiwanie na aktywację...");
 
-  useEffect(() => {
-    const startTracking = async () => {
-      try {
-        // KROK 1: Sprawdzenie uprawnień
-        const perm = await Geolocation.checkPermissions();
-        setErrorInfo(`Uprawnienia: ${perm.location}`);
-
-        if (perm.location !== 'granted') {
-          const req = await Geolocation.requestPermissions();
-          if (req.location !== 'granted') {
-            setErrorInfo("BRAK ZGODY NA GPS W SYSTEMIE");
-            return;
-          }
-        }
-
-        // KROK 2: Próba pobrania pozycji
-        setErrorInfo("Czekam na pierwszy sygnał satelity...");
-        
-        await Geolocation.watchPosition({
-          enableHighAccuracy: false, // Zmieniamy na false - szybciej łapie w budynkach
-          timeout: 15000
+  const requestGps = async () => {
+    try {
+      setGpsStatus("Proszę o uprawnienia...");
+      const perm = await Geolocation.requestPermissions();
+      
+      if (perm.location === 'granted') {
+        setGpsStatus("Szukam satelitów (wyjdź do okna/na zewnątrz)...");
+        const watchId = await Geolocation.watchPosition({
+          enableHighAccuracy: true,
+          timeout: 20000
         }, (pos, err) => {
           if (err) {
-            setErrorInfo(`BŁĄD GPS: ${err.message}`);
+            setGpsStatus(`Błąd: ${err.message}`);
+            toast.error("Błąd GPS: " + err.message);
           } else if (pos) {
             setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-            setErrorInfo(null); // Sukces
+            setGpsStatus("POŁĄCZONO");
           }
         });
-
-      } catch (e) {
-        setErrorInfo(`Błąd krytyczny: ${e.message}`);
+      } else {
+        setGpsStatus("Odrzucono dostęp do GPS");
       }
-    };
-
-    startTracking();
-  }, []);
+    } catch (e) {
+      setGpsStatus("Błąd krytyczny: " + e.message);
+    }
+  };
 
   return (
-    <div className="h-screen w-screen bg-[#050505] text-white font-mono flex flex-col">
+    <div className="h-screen w-screen bg-black text-white flex flex-col font-mono">
       <Toaster richColors />
       
-      {/* PASEK STATUSU (DIAGNOSTYKA) */}
-      {errorInfo && (
-        <div className="absolute top-20 left-4 right-4 z-[3000] bg-red-900/80 p-4 border border-red-500 rounded text-[10px]">
-          <p className="font-bold uppercase">Status Systemu:</p>
-          <p className="text-red-200 mt-1">{errorInfo}</p>
-          <p className="mt-2 text-gray-400 italic">Podpowiedź: Upewnij się, że masz włączony GPS w górnym menu telefonu.</p>
-        </div>
-      )}
+      {/* STATUS GPS */}
+      <div className="p-4 bg-[#111] border-b border-[#333] z-[3000]">
+        <h1 className="text-[#00f3ff] text-xs font-black italic">GEOVERSE SYSTEM</h1>
+        <p className="text-[10px] text-gray-500 mt-1">STATUS: {gpsStatus}</p>
+        
+        {!userPos && (
+          <button 
+            onClick={requestGps}
+            className="mt-2 w-full bg-[#00f3ff] text-black text-[10px] font-bold py-2 rounded uppercase"
+          >
+            Aktywuj Radar GPS
+          </button>
+        )}
+      </div>
 
       {userPos ? (
         <MapContainer center={[userPos.lat, userPos.lng]} zoom={16} zoomControl={false} className="flex-1">
@@ -71,9 +66,9 @@ const App = () => {
           <Marker position={[userPos.lat, userPos.lng]} icon={userIcon} />
         </MapContainer>
       ) : (
-        <div className="flex-1 flex flex-col items-center justify-center p-10 text-center">
-          <div className="w-12 h-12 border-4 border-[#00f3ff] border-t-transparent rounded-full animate-spin mb-4"></div>
-          <h1 className="text-[#00f3ff] text-xs tracking-widest uppercase">Szukanie Twojej pozycji...</h1>
+        <div className="flex-1 flex flex-col items-center justify-center p-10 text-center opacity-50">
+          <div className="w-10 h-10 border-2 border-[#00f3ff] border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-[10px]">OCZEKIWANIE NA SYGNAŁ Z URZĄDZENIA...</p>
         </div>
       )}
     </div>
