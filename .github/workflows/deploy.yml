@@ -1,0 +1,56 @@
+name: GeoVerse Global Release
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          
+      - name: Install dependencies
+        run: npm install
+        
+      - name: Build Web Version
+        run: npm run build
+        
+      - name: Upload Web Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GeoVerse-Web-App
+          path: dist/
+          
+      - name: Init Capacitor for Android
+        run: |
+          npx cap init GeoVerse com.geoverse.global --web-dir dist
+          npx cap add android
+          npx cap sync android
+          
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        
+      - name: Compile Android APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+          
+      - name: Upload Android Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GeoVerse-Android-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          
