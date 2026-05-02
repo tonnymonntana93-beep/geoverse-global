@@ -10,7 +10,7 @@ import { UserCircle, Shield, ShoppingBag, MessageSquare, MapPin, Search } from '
 const firebaseConfig = {
   apiKey: "BM1VxAtBCrkFr7fL5xYlaQF26MioB6LQjsMyCw09GZxURi1pBNCFaXS48aHe_CNakn-snN5hb7R2VBQkIDHF8tA",
   authDomain: "geoverse.firebaseapp.com",
-  databaseURL: "TWOJA_URL_BAZY",
+  databaseURL: "https://geoverse-global-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "geoverse-global",
   storageBucket: "geoverse.appspot.com",
   messagingSenderId: "ID",
