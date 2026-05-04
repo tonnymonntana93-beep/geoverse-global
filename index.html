@@ -6,25 +6,17 @@
     <title>GeoVerse Neo-Noir</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
       body { 
-        margin: 0; 
-        padding: 0; 
-        background-color: #050505; 
-        overflow: hidden;
-        font-family: 'VT323', monospace;
+        margin: 0; padding: 0; background-color: #0d001a; color: white; overflow: hidden;
+        font-family: 'Press Start 2P', cursive;
+        image-rendering: pixelated; /* Wymusza ostrość pikseli */
       }
-      /* Stylizacja dymków mapy na Pixel-Art */
-      .leaflet-popup-content-wrapper {
-        background: #0d1117 !important;
-        border: 2px solid #1dfa9e !important;
-        color: #1dfa9e !important;
-        border-radius: 0 !important;
-        box-shadow: 5px 5px 0px #000 !important;
-      }
-      .leaflet-popup-tip { background: #1dfa9e !important; }
-      .leaflet-container { background: #050505 !important; }
+      /* Dostosowanie dymków Leaflet */
+      .leaflet-popup-content-wrapper { background: #0d001a !important; border: 4px solid #a855f7 !important; border-radius: 0 !important; color: white !important; font-family: 'Press Start 2P', cursive !important; box-shadow: 8px 8px 0px black !important; }
+      .leaflet-popup-tip { background: #a855f7 !important; }
+      .leaflet-container { background: #0d001a !important; }
     </style>
   </head>
   <body>
