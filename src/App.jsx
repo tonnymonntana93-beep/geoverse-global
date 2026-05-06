@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, onValue, push, update, serverTimestamp } from "firebase/database";
-import { MessageSquare, MapPin, Package, ShoppingCart, Star, Send, ShieldAlert, Store, Coffee, Building } from 'lucide-react';
+import { MessageSquare, MapPin, Package, ShoppingCart, Star, Send, ShieldAlert } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 
 // --- KONFIGURACJA FIREBASE ---
@@ -60,17 +60,6 @@ const poiIcon = (type) => {
   });
 };
 
-// --- KOMPONENTY UI ---
-const PixelButton = ({ children, onClick, active, color = "#ffffff", className, type = "button" }) => (
-  <button 
-    type={type} onClick={onClick} 
-    className={`border-4 p-2 font-mono uppercase text-[10px] shadow-[4px_4px_0px_#000] active:translate-x-1 active:translate-y-1 transition-all ${active ? 'bg-white text-black border-white' : 'bg-[#0d001a] text-white hover:brightness-125'} ${className}`}
-    style={{ borderColor: active ? '#ffffff' : color, color: active ? '#000000' : color }}
-  >
-    {children}
-  </button>
-);
-
 const App = () => {
   const [user, setUser] = useState(null);
   const [userPos, setUserPos] = useState(null);
@@ -81,7 +70,6 @@ const App = () => {
   const chatEndRef = useRef(null);
   const [localPois, setLocalPois] = useState([]);
 
-  // Baza asortymentu
   const marketItems = [
     { id: 'm1', name: 'Kurtka Cyber-V', price: 450, img: '🧥', desc: '+10 Reputacja' },
     { id: 'm2', name: 'Buty Neon-Dash', price: 120, img: '👟', desc: '+5 Szybkość' },
@@ -89,7 +77,6 @@ const App = () => {
     { id: 'm4', name: 'Dron Zwiadowczy', price: 950, img: '🚁', desc: 'Odkrywa Sektor' }
   ];
 
-  // Inicjalizacja i pobieranie danych
   useEffect(() => {
     const saved = localStorage.getItem('gv_user_v2');
     if (saved) setUser(JSON.parse(saved));
@@ -105,7 +92,6 @@ const App = () => {
     });
   }, []);
 
-  // Aktualizacja pozycji agenta w bazie
   useEffect(() => {
     if (user && userPos) {
       update(ref(db, 'agents/' + user.id), {
@@ -114,7 +100,6 @@ const App = () => {
     }
   }, [user, userPos]);
 
-  // Generowanie Punktów Zainteresowania (POI) wokół gracza
   useEffect(() => {
     if (userPos && localPois.length === 0) {
       setLocalPois([
@@ -127,7 +112,6 @@ const App = () => {
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, view]);
 
-  // Akcje
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!inputText.trim()) return;
@@ -151,7 +135,6 @@ const App = () => {
     toast.success("Oceniono Agenta.");
   };
 
-  // --- WIDOK KREATORA POSTACI (LOGOWANIE) ---
   if (!user) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-4 text-white font-mono bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]">
@@ -209,12 +192,10 @@ const App = () => {
     );
   }
 
-  // --- GŁÓWNY INTERFEJS APLIKACJI ---
   return (
     <div className="h-screen flex flex-col bg-black text-white overflow-hidden text-xs font-mono">
       <Toaster richColors position="top-center" theme="dark" />
       
-      {/* HEADER */}
       <header className="p-3 border-b-4 border-gray-900 flex justify-between items-center bg-[#05000a] z-20">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 border-2 flex items-center justify-center text-lg font-black shadow-[2px_2px_0px_#000] bg-black" style={{ borderColor: user.color, color: user.color }}>
@@ -231,22 +212,14 @@ const App = () => {
         </div>
       </header>
 
-      {/* PRZESTRZEŃ ROBOCZA */}
       <main className="flex-1 relative bg-[#0a0a0a]">
-        
-        {/* --- MAPA --- */}
         {view === 'MAP' && userPos ? (
           <MapContainer center={[userPos.lat, userPos.lng]} zoom={17} zoomControl={false} className="h-full w-full">
-            {/* Lżejsza i bardziej czytelna mapa */}
             <TileLayer 
               url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" 
               className="map-tiles-adjusted"
             />
-            
-            {/* TY */}
             <Marker position={[userPos.lat, userPos.lng]} icon={isoIcon(user.color, "TO TY")} zIndexOffset={1000} />
-
-            {/* INNI AGENCI */}
             {Object.entries(agents).map(([id, data]) => {
               if (id === user.id || !data.pos) return null;
               return (
@@ -269,18 +242,16 @@ const App = () => {
                 </Marker>
               );
             })}
-
-            {/* PUNKTY POI (Restauracje, Sklepy) */}
             {localPois.map(poi => (
               <Marker key={poi.id} position={[poi.lat, poi.lng]} icon={poiIcon(poi.type)}>
                 <Popup className="custom-popup">
                   <div className="p-2 font-mono w-[180px] bg-black border-2 border-white text-white">
-                    <p className="text-[8px] text-gray-400 mb-1">{poi.type}</p>
-                    <h3 className="font-bold text-[10px] mb-2">{poi.name}</h3>
-                    <div className="bg-[#22d3ee]/20 text-[#22d3ee] p-2 border border-[#22d3ee] text-[9px] text-center mb-2 animate-pulse">
-                      {poi.promo}
-                    </div>
-                    <button className="w-full bg-white text-black p-1 text-[8px] font-bold">ODBIERZ BONUS</button>
+                        <p className="text-[8px] text-gray-400 mb-1">{poi.type}</p>
+                        <h3 className="font-bold text-[10px] mb-2">{poi.name}</h3>
+                        <div className="bg-[#22d3ee]/20 text-[#22d3ee] p-2 border border-[#22d3ee] text-[9px] text-center mb-2 animate-pulse">
+                          {poi.promo}
+                        </div>
+                        <button className="w-full bg-white text-black p-1 text-[8px] font-bold">ODBIERZ BONUS</button>
                   </div>
                 </Popup>
               </Marker>
@@ -293,14 +264,13 @@ const App = () => {
           </div>
         )}
 
-        {/* --- CZAT --- */}
         {view === 'CHAT' && (
           <div className="h-full flex flex-col bg-[#0d001a]">
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {messages.map((m, i) => (
                 <div key={i} className={`flex flex-col ${m.sender === user.name ? 'items-end' : 'items-start'}`}>
                   <span className="text-[7px] text-gray-500 mb-1 px-1">{m.sender}</span>
-                  <div className={`p-3 max-w-[80%] border-2 shadow-[2px_2px_0px_#000] ${m.sender === user.name ? 'bg-black text-white' : 'bg-black text-white'}`} style={{ borderColor: m.color || '#555' }}>
+                  <div className={`p-3 max-w-[80%] border-2 shadow-[2px_2px_0px_#000] bg-black text-white`} style={{ borderColor: m.color || '#555' }}>
                     <p className="text-[10px] leading-relaxed">{m.text}</p>
                   </div>
                 </div>
@@ -314,7 +284,6 @@ const App = () => {
           </div>
         )}
 
-        {/* --- MARKET --- */}
         {view === 'MARKET' && (
           <div className="h-full bg-[#0d001a] p-4 overflow-y-auto">
             <h2 className="text-[#facc15] border-b-2 border-[#facc15] pb-2 mb-4 text-sm font-black uppercase">Czarny Rynek</h2>
@@ -336,7 +305,6 @@ const App = () => {
           </div>
         )}
 
-        {/* --- EKWIPUNEK --- */}
         {view === 'INVENTORY' && (
           <div className="h-full bg-[#0d001a] p-4">
             <h2 className="text-white border-b-2 border-white pb-2 mb-4 text-sm font-black uppercase flex justify-between">
@@ -363,7 +331,6 @@ const App = () => {
         )}
       </main>
 
-      {/* --- DOLNA NAWIGACJA --- */}
       <footer className="bg-[#05000a] border-t-2 border-gray-800 flex justify-around items-center z-30 pb-safe">
         {[ 
           {id: 'MAP', icon: MapPin, label: 'MAPA'}, 
@@ -371,4 +338,23 @@ const App = () => {
           {id: 'MARKET', icon: ShoppingCart, label: 'RYNEK'}, 
           {id: 'INVENTORY', icon: Package, label: 'PLECAK'} 
         ].map(tab => (
-          <button key={tab.id} onClick={() => setView(tab.id)} className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${view === t
+          <button key={tab.id} onClick={() => setView(tab.id)} className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${view === tab.id ? 'bg-gray-900 border-t-2 border-[#22d3ee] text-[#22d3ee]' : 'text-gray-600 hover:text-gray-400'}`}>
+            <tab.icon size={20} strokeWidth={view === tab.id ? 2.5 : 1.5} />
+            <span className="text-[7px] font-bold">{tab.label}</span>
+          </button>
+        ))}
+      </footer>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        * { image-rendering: pixelated; font-family: 'Press Start 2P', cursive; }
+        .map-tiles-adjusted { filter: brightness(1.4) contrast(1.1) saturate(0.8) sepia(0.2) hue-rotate(240deg); }
+        .pixel-iso-marker { transition: transform 0.3s ease-out; }
+        .leaflet-popup-content-wrapper { background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 !important; }
+        .leaflet-popup-tip { display: none !important; }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+      `}} />
+    </div>
+  );
+};
+
+export default App;
